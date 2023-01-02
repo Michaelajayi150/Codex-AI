@@ -1,10 +1,16 @@
 import bot from "./assets/bot.svg";
 import user from "./assets/user.svg";
+import speaker from "./assets/speaker.png";
+import mute from "./assets/speaker.png";
 
 const form = document.querySelector("form");
 const chatContainer = document.querySelector("#chat_container");
 
+const utterThis = new SpeechSynthesisUtterance();
+const synth = window.speechSynthesis;
+
 let loadInterval;
+let speakingID;
 
 function loader(element) {
   element.textContent = "";
@@ -28,7 +34,7 @@ function typeText(element, text) {
     } else {
       clearInterval(interval);
     }
-  }, 20);
+  }, 50);
 }
 
 function generateUniqueID() {
@@ -39,19 +45,51 @@ function generateUniqueID() {
   return `id-${timeStamp}-${hexadecimalString}`;
 }
 
+function useSound(id) {
+  const elementText = document.getElementById(id);
+  if (synth.speaking) {
+    synth.cancel();
+    if (id !== speakingID) {
+      utterThis.text = elementText.innerHTML;
+      synth.speak(utterThis);
+      console.log("playing another one");
+    }
+  } else {
+    utterThis.text = elementText.innerHTML;
+    synth.speak(utterThis);
+  }
+
+  speakingID = id;
+  console.log(id);
+}
+
 function chatStripe(isAi, value, uniqueID) {
-  return `
-      <div class="wrapper ${isAi && "ai"}">
-        <div class="chat">
-          <div class="profile">
-            <img src="${isAi ? bot : user}" alt="${
+  let wrapper = document.createElement("div");
+  wrapper.className = `wrapper ${isAi && "ai"}`;
+
+  let chatWrapper = document.createElement("div");
+  chatWrapper.className = "chat";
+  chatWrapper.innerHTML = `
+  <div class="profile">
+    <img src="${isAi ? bot : user}" alt="${
     isAi ? "Bot Profile" : "User Profile"
   }" />
-          </div>
-          <div class="message" id=${uniqueID}>${value}</div>
-        </div>
-      </div>
-    `;
+  </div>
+  <div class="message" id=${uniqueID}>${value}</div>`;
+
+  let speakerWrapper = document.createElement("div");
+  speakerWrapper.className = "speaker-image";
+  speakerWrapper.innerHTML =
+    "speechSynthesis" in window && isAi && synth.speaking
+      ? `<img src=${speaker} alt="speaker" />`
+      : isAi && !synth.speaking
+      ? `<img src=${mute} alt="speaker" />`
+      : "";
+  speakerWrapper.addEventListener("click", () => useSound(uniqueID));
+  chatWrapper.appendChild(speakerWrapper);
+  wrapper.appendChild(chatWrapper);
+
+  return wrapper;
 }
 
 const handleSubmit = async (e) => {
@@ -59,13 +97,13 @@ const handleSubmit = async (e) => {
   const data = new FormData(form);
 
   // User's ChatStripe
-  chatContainer.innerHTML += chatStripe(false, data.get("prompt"));
+  chatContainer.appendChild(chatStripe(false, data.get("prompt")));
 
   form.reset();
 
   // Bot ChatStripe
   const uniqueID = generateUniqueID();
-  chatContainer.innerHTML += chatStripe(true, "", uniqueID);
+  chatContainer.appendChild(chatStripe(true, "", uniqueID));
 
   chatContainer.scrollTop = chatContainer.scrollHeight;
 
@@ -73,7 +111,7 @@ const handleSubmit = async (e) => {
   loader(messageDiv);
 
   // Fetch data from server
-  const response = await fetch("http://localhost:3000", {
+  const response = await fetch("https://chatgpt-codex-zwdk.onrender.com", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -89,6 +127,16 @@ const handleSubmit = async (e) => {
     const data = await response.json();
     const parsedData = data.bot.trim();
 
+    // Start Speaking if possible
+    utterThis.text = parsedData;
+    // Check if bot is speaking then cancel that
+    if (synth.speaking) {
+      synth.cancel();
+    }
+
+    speakingID = uniqueID;
+    synth.speak(utterThis);
+
     typeText(messageDiv, parsedData);
   } else {
     const err = await response.text();
@@ -98,8 +146,9 @@ const handleSubmit = async (e) => {
 };
 
 form.addEventListener("submit", handleSubmit);
-form.addEventListener("keyup", (e) => {
+form.addEventListener("keydown", (e) => {
   if (e.keyCode === 13) {
+    e.preventDefault();
     handleSubmit(e);
   }
 });

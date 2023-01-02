@@ -60,7 +60,7 @@ body {
 
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 10px;
 }
 
@@ -147,4 +147,15 @@ button {
 form img {
   width: 30px;
   height: 30px;
+}
+
+.speaker-image {
+  width: 30px;
+  height: 30px;
+  align-self: flex-end;
+  cursor: pointer;
+}
+
+.speaker-image img {
+  width: 100%;
 }
