@@ -52,7 +52,6 @@ function useSound(id) {
     if (id !== speakingID) {
       utterThis.text = elementText.innerHTML;
       synth.speak(utterThis);
-      console.log("playing another one");
     }
   } else {
     utterThis.text = elementText.innerHTML;
@@ -60,7 +59,6 @@ function useSound(id) {
   }
 
   speakingID = id;
-  console.log(id);
 }
 
 function chatStripe(isAi, value, uniqueID) {
